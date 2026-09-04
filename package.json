@@ -1,0 +1,27 @@
+{
+  "name": "pro-se-commons-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The real Next.js + Supabase + Stripe backend being built alongside the static index.html prototype, per SPEC.md.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
+    "stripe:trigger:notice": "stripe trigger checkout.session.completed --add checkout_session:metadata.type=public_notice",
+    "stripe:trigger:item": "stripe trigger checkout.session.completed --add checkout_session:metadata.type=marketplace_item"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "stripe": "^16.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "typescript": "^5.5.3"
+  }
+}

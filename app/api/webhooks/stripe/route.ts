@@ -155,3 +155,4 @@ async function handleMarketplacePurchase(
   }
 
   console.log(`[webhooks/stripe] purchase recorded: item ${itemId}, buyer ${buyerId}, session ${session.id}`);
+}

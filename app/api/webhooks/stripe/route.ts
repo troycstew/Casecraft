@@ -52,11 +52,22 @@ export async function POST(request: Request) {
         );
       }
     } else {
+      // Not an error — Stripe sends many event types to any endpoint
+      // subscribed to "all events." Only checkout.session.completed is
+      // wired up so far.
       console.log(`[webhooks/stripe] ignoring unhandled event type: ${event.type}`);
     }
 
+    // Always 200 once we've successfully parsed and (attempted to)
+    // handle the event, per Stripe's guidance — a non-2xx tells Stripe
+    // to retry, which we only want to happen for our own bugs, not for
+    // event types we intentionally ignore.
     return NextResponse.json({ received: true });
   } catch (err) {
+    // A failure *handling* a verified event (e.g. the Supabase update
+    // below throws) should return a non-2xx so Stripe retries the
+    // webhook automatically instead of silently losing the payment
+    // update.
     console.error("[webhooks/stripe] error handling verified event:", err);
     return NextResponse.json({ error: "Webhook handler failed." }, { status: 500 });
   }
@@ -87,12 +98,16 @@ async function handlePublicNoticePaid(
       expires_at: expiresAt.toISOString(),
     })
     .eq("id", noticeId)
+    // Only ever transition a notice out of 'pending' once — if the
+    // webhook fires twice for the same session (Stripe explicitly
+    // recommends handling this), the second update is a no-op instead
+    // of resetting a already-published notice's 7-day clock.
     .eq("payment_status", "pending")
     .select("id");
 
   if (error) {
     console.error(`[webhooks/stripe] failed to mark notice ${noticeId} as paid:`, error.message);
-    throw error;
+    throw error; // triggers the 500 -> Stripe retry in the caller
   }
   if (!data || data.length === 0) {
     console.warn(
@@ -128,6 +143,9 @@ async function handleMarketplacePurchase(
   });
 
   if (error) {
+    // stripe_session_id has a unique constraint, so a retried webhook
+    // for the same session hits a duplicate-key error here — that's
+    // expected and not a real failure, unlike any other insert error.
     if (error.code === "23505") {
       console.warn(`[webhooks/stripe] purchase for session ${session.id} already recorded — skipping.`);
       return;
@@ -136,4 +154,4 @@ async function handleMarketplacePurchase(
     throw error;
   }
 
-  console.log(`[webhooks/stripe] purchase recorded: item ${itemId}, buyer ${buyerId}, session ${session.id}
+  console.log(`[webhooks/stripe] purchase recorded: item ${itemId}, buyer ${buyerId}, session ${session.id}`);

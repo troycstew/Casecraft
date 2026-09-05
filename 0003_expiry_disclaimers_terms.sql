@@ -80,6 +80,15 @@ select cron.schedule(
 
 -- ============================================================
 -- CHUNK 4 — 48-hour review window
+--
+-- This policy only works once something actually sets completed_at.
+-- requests.completed_at already exists as a column, but nothing writes
+-- to it yet — that happens in the (not-yet-built) "provider marks
+-- complete" API endpoint. Whatever that endpoint turns out to be, the
+-- update that flips status to 'completed' must set
+-- completed_at = now() in the same write, or every review attempt will
+-- silently fail this policy with no completed_at to measure the
+-- 48-hour window from.
 -- ============================================================
 alter policy "buyers review their own completed requests"
   on reviews
